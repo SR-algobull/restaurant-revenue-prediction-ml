@@ -1,28 +1,7 @@
 """
 Streamlit App for ML Model Deployment
-=====================================
-
-This is your Streamlit application that deploys both your regression and
-classification models. Users can input feature values and get predictions.
-
-HOW TO RUN LOCALLY:
-    streamlit run app/app.py
-
-HOW TO DEPLOY TO STREAMLIT CLOUD:
-    1. Push your code to GitHub
-    2. Go to share.streamlit.io
-    3. Connect your GitHub repo
-    4. Set the main file path to: app/app.py
-    5. Deploy!
-
-WHAT YOU NEED TO CUSTOMIZE:
-    1. Update the page title and description
-    2. Update feature input fields to match YOUR features
-    3. Update the model paths if you changed them
-    4. Customize the styling if desired
-
-Author: Samuel Reid  # 
-Dataset: Restaurant_data.csv #
+Restaurant Revenue Prediction & Classification
+Author: Samuel Reid
 """
 
 import streamlit as st
@@ -31,306 +10,333 @@ import numpy as np
 import joblib
 from pathlib import Path
 
+
 # =============================================================================
 # PAGE CONFIGURATION
 # =============================================================================
-# This must be the first Streamlit command!
+
 st.set_page_config(
-    page_title="Restaurant Revenue Forecasting & Classification App",  # TODO: Update with your project name
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Restaurant Revenue Prediction App",
+    page_icon="🍽️",
+    layout="wide"
 )
 
+
 # =============================================================================
-# HELPER FUNCTIONS
+# LOAD MODELS
 # =============================================================================
 
-@st.cache_resource  # Cache the models so they don't reload every time
+@st.cache_resource
 def load_models():
-    """Load all saved models and artifacts."""
-    # Get the path to the models directory
-    # This works both locally and on Streamlit Cloud
+
     base_path = Path(__file__).parent.parent / "models"
 
     models = {}
 
+    models['regression_model'] = joblib.load(base_path / "regression_model.pkl")
+    models['regression_scaler'] = joblib.load(base_path / "regression_scaler.pkl")
+    models['regression_features'] = joblib.load(base_path / "regression_features.pkl")
+
+    models['classification_model'] = joblib.load(base_path / "classification_model.pkl")
+    models['classification_scaler'] = joblib.load(base_path / "classification_scaler.pkl")
+    models['classification_features'] = joblib.load(base_path / "classification_features.pkl")
+    models['label_encoder'] = joblib.load(base_path / "label_encoder.pkl")
+
     try:
-        # Load regression model and scaler
-        models['regression_model'] = joblib.load(base_path / "regression_model.pkl")
-        models['regression_scaler'] = joblib.load(base_path / "regression_scaler.pkl")
-        models['regression_features'] = joblib.load(base_path / "regression_features.pkl")
-
-        # Load classification model and artifacts
-        models['classification_model'] = joblib.load(base_path / "classification_model.pkl")
-        models['classification_scaler'] = joblib.load(base_path / "classification_scaler.pkl")
-        models['label_encoder'] = joblib.load(base_path / "label_encoder.pkl")
-        models['classification_features'] = joblib.load(base_path / "classification_features.pkl")
-
-        # Optional: Load binning info for display
-        try:
-            models['binning_info'] = joblib.load(base_path / "binning_info.pkl")
-        except:
-            models['binning_info'] = None
-
-    except FileNotFoundError as e:
-        st.error(f"Model file not found: {e}")
-        st.info("Make sure you've trained and saved your models in the notebooks first!")
-        return None
+        models['binning_info'] = joblib.load(base_path / "binning_info.pkl")
+    except:
+        models['binning_info'] = None
 
     return models
 
 
-def make_regression_prediction(models, input_data):
-    """Make a regression prediction."""
-    # Scale the input
-    input_scaled = models['regression_scaler'].transform(input_data)
-    # Predict
-    prediction = models['regression_model'].predict(input_scaled)
+# =============================================================================
+# PREDICTION FUNCTIONS
+# =============================================================================
+
+def make_regression_prediction(models, input_df):
+
+    input_df = input_df[models['regression_features']]
+    scaled = models['regression_scaler'].transform(input_df)
+
+    prediction = models['regression_model'].predict(scaled)
+
     return prediction[0]
 
 
-def make_classification_prediction(models, input_data):
-    """Make a classification prediction."""
-    # Scale the input
-    input_scaled = models['classification_scaler'].transform(input_data)
-    # Predict
-    prediction = models['classification_model'].predict(input_scaled)
-    # Get label
-    label = models['label_encoder'].inverse_transform(prediction)
-    return label[0], prediction[0]
+def make_classification_prediction(models, input_df):
+
+    input_df = input_df[models['classification_features']]
+    scaled = models['classification_scaler'].transform(input_df)
+
+    pred = models['classification_model'].predict(scaled)
+
+    label = models['label_encoder'].inverse_transform(pred)
+
+    return label[0]
 
 
 # =============================================================================
-# SIDEBAR - Navigation
+# SIDEBAR
 # =============================================================================
+
 st.sidebar.title("Navigation")
+
 page = st.sidebar.radio(
-    "Choose a model:",
-    ["🏠 Home", "📈 Regression Model", "🏷️ Classification Model"]
+
+    "Select Model",
+
+    [
+        "Home",
+        "Regression",
+        "Classification"
+    ]
 )
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### About")
-st.sidebar.info(
-    """
-    This app deploys machine learning models trained on Restaurant_data.csv.
-
-    - **Regression**: Predicts Annual Restaurant Revenue
-    - **Classification**: Predicts Revenue Category (Low, Medium Low, Medium High, High)
-    """
-)
-# TODO: UPDATE YOUR NAME HERE! This shows visitors who built this app.
-st.sidebar.markdown("**Built by:** Samuel Reid")
-st.sidebar.markdown("https://github.com/SR-algobull/restaurant-revenue-prediction-ml/tree/main")
+st.sidebar.markdown("Built by Samuel Reid")
 
 
 # =============================================================================
-# HOME PAGE
+# HOME
 # =============================================================================
-if page == "🏠 Home":
-    st.title("🤖 Restaurant Revenue Forecasting & Classification App")
-    st.markdown("### Welcome!")
 
-    st.write(
-        """
-        This application allows you to make predictions using trained machine learning models.
+if page == "Home":
 
-        **What you can do:**
-        - 📈 **Regression Model**: Predict a numerical value for a restaurant's revenue
-        - 🏷️ **Classification Model**: Predict a category for a restaurant's revenue
+    st.title("Restaurant Revenue Prediction")
 
-        Use the sidebar to navigate between different models.
-        """
-    )
+    st.write("""
 
-    # TODO: Add more information about your specific project
-    st.markdown("---")
-    st.markdown("### About This Project")
-    st.write(
-        """
-        **Dataset:** This dataset contains information about various restaurants and aims to predict the revenue based on several features. Each row represents a unique restaurant with various attributes that may influence its revenue.
+    This app predicts:
 
-        **Problem Statement:** Problem Statement
-        The Objective: To develop a predictive regression model that forecasts a restaurant’s annual revenue based on operational and restaurant-specific key features.
+    • Annual Revenue (Regression)
 
-        The "Why":
-        Investment Risk Mitigation: For new ventures, predicting revenue helps stakeholders determine if a location is financially viable before committing capital.
+    • Revenue Category (Classification)
 
-        Operational Optimization: For existing businesses, understanding which features (e.g., seating capacity, city type, or cuisine) most strongly correlate with high revenue allows for better resource allocation.
-
-        Strategic Growth: Data-driven forecasts enable more accurate budgeting, staffing, and marketing strategies by identifying the "sweet spot" for high-performing restaurant profiles.
-
-        **Models Used:**
-        - Regression: Random Forest Regressor
-        - Classification: Gradient Boosting Classifier
-
-        - Both models were selected after evaluating performance across multiple algorithms and optimizing for predictive accuracy.
-        """
-    )
-
-    # Show a sample of your data or an image (optional)
-    # st.image("path/to/image.png", caption="Sample visualization")
+    """)
 
 
 # =============================================================================
 # REGRESSION PAGE
 # =============================================================================
-elif page == "📈 Regression Model":
-    st.title("📈 Regression Prediction")
-    st.write("Enter feature values to get a  numerical prediction.")
 
-    # Load models
+elif page == "Regression":
+
+    st.title("Regression Prediction")
+    st.write("Predict restaurant revenue")
+
+
     models = load_models()
 
-    if models is None:
-        st.stop()
 
-    # Get feature names
-    features = models['regression_features']
+    st.subheader("Enter Features")
 
-    st.markdown("---")
-    st.markdown("### Enter Feature Values")
 
-    # Create input fields for each feature
-    # TODO: CUSTOMIZE THIS SECTION FOR YOUR FEATURES!
-    # The example below creates number inputs, but you may need:
-    # - st.selectbox() for categorical features
-    # - st.slider() for bounded numerical features
-    # - Different default values and ranges
-
-    # Create columns for better layout
     col1, col2 = st.columns(2)
 
     input_values = {}
 
-    for i, feature in enumerate(features):
-        # Alternate between columns
-        with col1 if i % 2 == 0 else col2:
-            # TODO: Customize each input based on your feature type and range
-            # Example: For a feature like 'bedrooms' you might use:
-            # input_values[feature] = st.number_input(feature, min_value=0, max_value=10, value=3)
 
-            input_values[feature] = st.number_input(
-                label=feature,
-                value=0.0,  # Default value - UPDATE THIS
-                help=f"Enter value for {feature}"
-            )
+    # REQUIRED FEATURES
 
-    st.markdown("---")
+    with col1:
 
-    # Prediction button
-    if st.button("🔮 Make Regression Prediction", type="primary"):
-        # Create input dataframe
-        input_df = pd.DataFrame([input_values])
+        input_values["Average Meal Price"] = st.number_input(
 
-        # Make prediction
-        prediction = make_regression_prediction(models, input_df)
+            "Average Meal Price ($)",
+            min_value=0.0,
+            value=25.0
+        )
 
-        # Display result
-        st.success(f"### Predicted Value: {prediction:,.2f}")
+        input_values["Seating Capacity"] = st.number_input(
 
-        # TODO: Add context to your prediction
-        # st.write(f"This means... [interpretation]")
+            "Seating Capacity",
+            min_value=0,
+            value=50
+        )
 
-        # Show input summary
-        with st.expander("View Input Summary"):
-            st.dataframe(input_df)
+
+        input_values["Total Reservations"] = st.number_input(
+
+            "Total Reservations",
+            min_value=0,
+            value=200
+        )
+
+
+    with col2:
+
+        input_values["Marketing Budget"] = st.number_input(
+
+            "Marketing Budget",
+            min_value=0.0,
+            value=1000.0
+        )
+
+
+        input_values["Social Media Followers"] = st.number_input(
+
+            "Social Media Followers",
+            min_value=0,
+            value=5000
+        )
+
+
+        input_values["Rating"] = st.slider(
+
+            "Rating",
+            0.0,
+            5.0,
+            4.0
+        )
+
+
+    if st.button("Predict Revenue"):
+
+        df = pd.DataFrame([input_values])
+
+        prediction = make_regression_prediction(models, df)
+
+        st.success(f"Predicted Revenue: ${prediction:,.2f}")
+
+        st.dataframe(df)
+
 
 
 # =============================================================================
 # CLASSIFICATION PAGE
 # =============================================================================
-elif page == "🏷️ Classification Model":
-    st.title("🏷️ Classification Prediction")
-    st.write("Enter feature values to get a category prediction.")
 
-    # Load models
+elif page == "Classification":
+
+    st.title("Revenue Category Classification")
+
+
     models = load_models()
 
-    if models is None:
-        st.stop()
 
-    # Get feature names and class labels
-    features = models['classification_features']
-    class_labels = models['label_encoder'].classes_
+    st.subheader("Enter Features")
 
-    # Show the possible categories
-    st.info(f"**Possible Categories:** {', '.join(class_labels)}")
-
-    # Show binning info if available
-    if models['binning_info']:
-        with st.expander("How were categories created?"):
-            binning = models['binning_info']
-            st.write(f"Original target: **{binning['original_target']}**")
-            st.write("Categories were created by binning the numerical values:")
-            for i, label in enumerate(binning['labels']):
-                if i == 0:
-                    st.write(f"- **{label}**: < {binning['bins'][i+1]}")
-                elif i == len(binning['labels']) - 1:
-                    st.write(f"- **{label}**: >= {binning['bins'][i]}")
-                else:
-                    st.write(f"- **{label}**: {binning['bins'][i]} to {binning['bins'][i+1]}")
-
-    st.markdown("---")
-    st.markdown("### Enter Feature Values")
-
-    # Create input fields
-    # TODO: CUSTOMIZE THIS SECTION FOR YOUR FEATURES!
 
     col1, col2 = st.columns(2)
 
     input_values = {}
 
-    for i, feature in enumerate(features):
-        with col1 if i % 2 == 0 else col2:
-            # TODO: Customize each input based on your feature type and range
-            input_values[feature] = st.number_input(
-                label=feature,
-                value=0.0,
-                key=f"class_{feature}",  # Unique key for classification inputs
-                help=f"Enter value for {feature}"
-            )
 
-    st.markdown("---")
+    # NUMERIC FEATURES
 
-    # Prediction button
-    if st.button("🔮 Make Classification Prediction", type="primary"):
-        # Create input dataframe
-        input_df = pd.DataFrame([input_values])
+    with col1:
 
-        # Make prediction
-        predicted_label, predicted_index = make_classification_prediction(models, input_df)
+        input_values["Average Meal Price"] = st.number_input(
 
-        # Display result with color coding
-        # TODO: Customize colors based on your categories
-        color_map = {
-        'Low': '🔴',
-        'Medium Low': '🟠',
-        'Medium High': '🟡',
-        'High': '🟢'}
-        emoji = color_map.get(predicted_label, '🔵')
+            "Average Meal Price ($)",
+            min_value=0.0,
+            value=25.0
+        )
 
-        st.success(f"### Predicted Category: {emoji} {predicted_label}")
+        input_values["Seating Capacity"] = st.number_input(
 
-        # TODO: Add interpretation
-        # st.write(f"This means... [interpretation]")
+            "Seating Capacity",
+            min_value=0,
+            value=50
+        )
 
-        # Show input summary
-        with st.expander("View Input Summary"):
-            st.dataframe(input_df)
+
+        input_values["Total Reservations"] = st.number_input(
+
+            "Total Reservations",
+            min_value=0,
+            value=200
+        )
+
+
+    with col2:
+
+        input_values["Rating"] = st.slider(
+
+            "Rating",
+            0.0,
+            5.0,
+            4.0
+        )
+
+
+    # LOCATION DROPDOWN
+
+    location = st.selectbox(
+
+        "Location",
+
+        [
+
+            "Urban",
+            "Suburban",
+            "Rural"
+
+        ]
+    )
+
+
+    input_values["Location_Urban"] = 1 if location == "Urban" else 0
+    input_values["Location_Suburban"] = 1 if location == "Suburban" else 0
+    input_values["Location_Rural"] = 1 if location == "Rural" else 0
+
+
+    # CUISINE DROPDOWN
+
+    cuisine = st.selectbox(
+
+        "Cuisine",
+
+        [
+
+            "American",
+            "Italian",
+            "Japanese",
+            "Mexican",
+            "French",
+            "Indian",
+            "Chinese"
+
+        ]
+    )
+
+
+    input_values["Cuisine_American"] = 1 if cuisine == "American" else 0
+    input_values["Cuisine_Italian"] = 1 if cuisine == "Italian" else 0
+    input_values["Cuisine_Japanese"] = 1 if cuisine == "Japanese" else 0
+    input_values["Cuisine_Mexican"] = 1 if cuisine == "Mexican" else 0
+    input_values["Cuisine_French"] = 1 if cuisine == "French" else 0
+    input_values["Cuisine_Indian"] = 1 if cuisine == "Indian" else 0
+    input_values["Cuisine_Chinese"] = 1 if cuisine == "Chinese" else 0
+
+
+    if st.button("Predict Category"):
+
+        df = pd.DataFrame([input_values])
+
+        prediction = make_classification_prediction(models, df)
+
+
+        emoji_map = {
+
+            "Low": "🔴",
+            "Medium Low": "🟠",
+            "Medium High": "🟡",
+            "High": "🟢"
+
+        }
+
+        emoji = emoji_map.get(prediction, "")
+
+        st.success(f"Predicted Category: {emoji} {prediction}")
+
+        st.dataframe(df)
 
 
 # =============================================================================
 # FOOTER
 # =============================================================================
+
 st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center; color: gray;'>
-        Built by Samuel Reid | Full Stack Academy AI & ML Bootcamp
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-# TODO: Replace [YOUR NAME] above with your actual name!
+st.markdown("Samuel Reid | Full Stack Academy AI & ML Bootcamp")
