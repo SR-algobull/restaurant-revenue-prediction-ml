@@ -21,8 +21,8 @@ WHAT YOU NEED TO CUSTOMIZE:
     3. Update the model paths if you changed them
     4. Customize the styling if desired
 
-Author: [Your Name]  # <-- UPDATE THIS!
-Dataset: [Your Dataset]  # <-- UPDATE THIS!
+Author: Samuel Reid  # 
+Dataset: Restaurant_data.csv #
 """
 
 import streamlit as st
@@ -36,7 +36,7 @@ from pathlib import Path
 # =============================================================================
 # This must be the first Streamlit command!
 st.set_page_config(
-    page_title="ML Prediction App",  # TODO: Update with your project name
+    page_title="Restaurant Revenue Forecasting & Classification App",  # TODO: Update with your project name
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -114,22 +114,22 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### About")
 st.sidebar.info(
     """
-    This app deploys machine learning models trained on [YOUR DATASET].
+    This app deploys machine learning models trained on Restaurant_data.csv.
 
-    - **Regression**: Predicts [YOUR TARGET]
-    - **Classification**: Predicts [YOUR CATEGORIES]
+    - **Regression**: Predicts Annual Restaurant Revenue
+    - **Classification**: Predicts Revenue Category (Low, Medium Low, Medium High, High)
     """
 )
 # TODO: UPDATE YOUR NAME HERE! This shows visitors who built this app.
-st.sidebar.markdown("**Built by:** [YOUR NAME]")
-st.sidebar.markdown("[GitHub Repo](https://github.com/YOUR-USERNAME/YOUR-REPO)")
+st.sidebar.markdown("**Built by:** Samuel Reid")
+st.sidebar.markdown("https://github.com/SR-algobull/restaurant-revenue-prediction-ml/tree/main")
 
 
 # =============================================================================
 # HOME PAGE
 # =============================================================================
 if page == "🏠 Home":
-    st.title("🤖 Machine Learning Prediction App")
+    st.title("🤖 Restaurant Revenue Forecasting & Classification App")
     st.markdown("### Welcome!")
 
     st.write(
@@ -137,8 +137,8 @@ if page == "🏠 Home":
         This application allows you to make predictions using trained machine learning models.
 
         **What you can do:**
-        - 📈 **Regression Model**: Predict a numerical value
-        - 🏷️ **Classification Model**: Predict a category
+        - 📈 **Regression Model**: Predict a numerical value for a restaurant's revenue
+        - 🏷️ **Classification Model**: Predict a category for a restaurant's revenue
 
         Use the sidebar to navigate between different models.
         """
@@ -149,13 +149,23 @@ if page == "🏠 Home":
     st.markdown("### About This Project")
     st.write(
         """
-        **Dataset:** [Describe your dataset]
+        **Dataset:** This dataset contains information about various restaurants and aims to predict the revenue based on several features. Each row represents a unique restaurant with various attributes that may influence its revenue.
 
-        **Problem Statement:** [What are you predicting and why?]
+        **Problem Statement:** Problem Statement
+        The Objective: To develop a predictive regression model that forecasts a restaurant’s annual revenue based on operational and restaurant-specific key features.
+
+        The "Why":
+        Investment Risk Mitigation: For new ventures, predicting revenue helps stakeholders determine if a location is financially viable before committing capital.
+
+        Operational Optimization: For existing businesses, understanding which features (e.g., seating capacity, city type, or cuisine) most strongly correlate with high revenue allows for better resource allocation.
+
+        Strategic Growth: Data-driven forecasts enable more accurate budgeting, staffing, and marketing strategies by identifying the "sweet spot" for high-performing restaurant profiles.
 
         **Models Used:**
-        - Regression: [Your regression model type]
-        - Classification: [Your classification model type]
+        - Regression: Random Forest Regressor
+        - Classification: Gradient Boosting Classifier
+
+        - Both models were selected after evaluating performance across multiple algorithms and optimizing for predictive accuracy.
         """
     )
 
@@ -168,7 +178,7 @@ if page == "🏠 Home":
 # =============================================================================
 elif page == "📈 Regression Model":
     st.title("📈 Regression Prediction")
-    st.write("Enter feature values to get a numerical prediction.")
+    st.write("Enter feature values to get a  numerical prediction.")
 
     # Load models
     models = load_models()
@@ -295,10 +305,10 @@ elif page == "🏷️ Classification Model":
         # Display result with color coding
         # TODO: Customize colors based on your categories
         color_map = {
-            'Low': '🔴',
-            'Medium': '🟡',
-            'High': '🟢'
-        }
+        'Low': '🔴',
+        'Medium Low': '🟠',
+        'Medium High': '🟡',
+        'High': '🟢'}
         emoji = color_map.get(predicted_label, '🔵')
 
         st.success(f"### Predicted Category: {emoji} {predicted_label}")
@@ -318,7 +328,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: gray;'>
-        Built by [YOUR NAME] | Full Stack Academy AI & ML Bootcamp
+        Built by Samuel Reid | Full Stack Academy AI & ML Bootcamp
     </div>
     """,
     unsafe_allow_html=True
