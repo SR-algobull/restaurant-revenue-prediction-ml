@@ -1,7 +1,12 @@
+
 """
 Streamlit App for ML Model Deployment
 =====================================
-(UNCHANGED HEADER — UI preserved)
+
+Restaurant Revenue Forecasting & Classification App
+
+Author: Samuel Reid
+Dataset: Restaurant_data.csv
 """
 
 import streamlit as st
@@ -9,11 +14,13 @@ import pandas as pd
 import numpy as np
 import joblib
 from pathlib import Path
+import plotly.graph_objects as go
 
 
 # =============================================================================
-# PAGE CONFIGURATION (UNCHANGED)
+# PAGE CONFIGURATION
 # =============================================================================
+
 st.set_page_config(
     page_title="Restaurant Revenue Forecasting & Classification App",
     page_icon="🤖",
@@ -46,28 +53,25 @@ def load_models():
 
 
 # =============================================================================
-# SAFE FEATURE ALIGNMENT (FIXES YOUR KEYERROR)
+# SAFE FEATURE ALIGNMENT (FIXES KEYERROR)
 # =============================================================================
 
 def align_features(input_dict, feature_list):
-    """
-    Converts dropdown selections into correct one-hot columns
-    and ensures dataframe EXACTLY matches model features.
-    """
 
-    df = pd.DataFrame([input_dict])
+    aligned = {}
 
-    # initialize all required columns to 0
-    for col in feature_list:
-        if col not in df.columns:
-            df[col] = 0
+    for feature in feature_list:
 
-    # return correctly ordered dataframe
-    return df[feature_list]
+        if feature in input_dict:
+            aligned[feature] = input_dict[feature]
+        else:
+            aligned[feature] = 0
+
+    return pd.DataFrame([aligned])
 
 
 # =============================================================================
-# PREDICTION FUNCTIONS
+# PREDICTIONS
 # =============================================================================
 
 def make_regression_prediction(models, input_dict):
@@ -76,9 +80,9 @@ def make_regression_prediction(models, input_dict):
 
     scaled = models['regression_scaler'].transform(df)
 
-    pred = models['regression_model'].predict(scaled)
+    prediction = models['regression_model'].predict(scaled)[0]
 
-    return pred[0]
+    return prediction
 
 
 def make_classification_prediction(models, input_dict):
@@ -87,15 +91,44 @@ def make_classification_prediction(models, input_dict):
 
     scaled = models['classification_scaler'].transform(df)
 
-    pred = models['classification_model'].predict(scaled)
+    prediction = models['classification_model'].predict(scaled)
 
-    label = models['label_encoder'].inverse_transform(pred)
+    label = models['label_encoder'].inverse_transform(prediction)[0]
 
-    return label[0]
+    return label
 
 
 # =============================================================================
-# SIDEBAR (UNCHANGED)
+# GAUGE CHART
+# =============================================================================
+
+def revenue_gauge(prediction):
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=prediction,
+        title={'text': "Predicted Annual Revenue"},
+        gauge={
+            'axis': {'range': [0, max(500000, prediction*1.2)]},
+
+            'bar': {'color': "green"},
+
+            'steps': [
+                {'range': [0, 100000], 'color': "red"},
+                {'range': [100000, 300000], 'color': "orange"},
+                {'range': [300000, 500000], 'color': "yellow"},
+                {'range': [500000, prediction*1.2], 'color': "green"},
+            ],
+        }
+    ))
+
+    fig.update_layout(height=400)
+
+    return fig
+
+
+# =============================================================================
+# SIDEBAR
 # =============================================================================
 
 st.sidebar.title("Navigation")
@@ -107,12 +140,14 @@ page = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 
+st.sidebar.markdown("### About")
+
 st.sidebar.info(
 """
 This app deploys machine learning models trained on Restaurant_data.csv.
 
-- Regression: Predicts Annual Restaurant Revenue
-- Classification: Predicts Revenue Category
+- **Regression**: Predicts Annual Restaurant Revenue  
+- **Classification**: Predicts Revenue Category  
 """
 )
 
@@ -120,7 +155,7 @@ st.sidebar.markdown("**Built by:** Samuel Reid")
 
 
 # =============================================================================
-# HOME PAGE (UNCHANGED)
+# HOME PAGE
 # =============================================================================
 
 if page == "🏠 Home":
@@ -129,82 +164,36 @@ if page == "🏠 Home":
 
     st.markdown("### Welcome!")
 
-    st.write("Use the sidebar to navigate.")
+    st.write(
+"""
+Use the sidebar to select a model.
+
+📈 Regression → Predict revenue  
+🏷️ Classification → Predict revenue category
+"""
+)
 
 
 # =============================================================================
-# REGRESSION PAGE (3×3 GRID FIX)
+# REGRESSION PAGE
 # =============================================================================
 
 elif page == "📈 Regression Model":
 
     st.title("📈 Regression Prediction")
 
+    st.write("Enter feature values to get a numerical prediction.")
+
     models = load_models()
 
-    features = models['regression_features']
-
+    st.markdown("---")
 
     st.markdown("### Enter Feature Values")
 
 
-    # create 3 rows × 2 columns
-    rows = [st.columns(2) for _ in range(3)]
+    region_options = ["Urban", "Suburban", "Rural"]
 
-    input_dict = {}
-
-    for i, feature in enumerate(features):
-
-        row = i // 2
-        col = i % 2
-
-        with rows[row][col]:
-
-            input_dict[feature] = st.number_input(
-                feature,
-                value=0.0
-            )
-
-
-    st.markdown("---")
-
-    if st.button("🔮 Make Regression Prediction", type="primary"):
-
-        prediction = make_regression_prediction(models, input_dict)
-
-        st.success(f"### Predicted Value: {prediction:,.2f}")
-
-        with st.expander("View Input Summary"):
-            st.write(input_dict)
-
-
-
-# =============================================================================
-# CLASSIFICATION PAGE (DROPDOWNS + FIXED)
-# =============================================================================
-
-elif page == "🏷️ Classification Model":
-
-    st.title("🏷️ Classification Prediction")
-
-    models = load_models()
-
-    features = models['classification_features']
-
-
-    cuisine_options = [
-        "Japanese",
-        "Mexican",
-        "French",
-        "Indian",
-        "Italian"
-    ]
-
-    region_options = [
-        "Urban",
-        "Suburban",
-        "Rural"
-    ]
+    cuisine_options = ["Japanese", "Mexican", "French", "Indian", "Italian"]
 
 
     rows = [st.columns(2) for _ in range(3)]
@@ -212,15 +201,21 @@ elif page == "🏷️ Classification Model":
     input_dict = {}
 
 
-    # Row 1
     with rows[0][0]:
-        input_dict["Average Meal Price"] = st.number_input("Average Meal Price", value=25.0)
+
+        input_dict["Average Meal Price"] = st.slider(
+            "Average Meal Price",
+            5.0, 150.0, 25.0
+        )
 
     with rows[0][1]:
-        input_dict["Seating Capacity"] = st.number_input("Seating Capacity", value=50)
+
+        input_dict["Seating Capacity"] = st.slider(
+            "Seating Capacity",
+            10, 300, 50
+        )
 
 
-    # Row 2
     with rows[1][0]:
 
         region = st.selectbox("Region", region_options)
@@ -235,16 +230,116 @@ elif page == "🏷️ Classification Model":
         input_dict[f"Cuisine_{cuisine}"] = 1
 
 
-    # Row 3
     with rows[2][0]:
 
-        input_dict["Total Reservations"] = st.number_input("Total Reservations", value=100)
+        input_dict["Total Reservations"] = st.slider(
+            "Total Reservations",
+            0, 1000, 200
+        )
 
 
     with rows[2][1]:
 
-        input_dict["Rating"] = st.number_input("Rating", value=4.0)
+        input_dict["Rating"] = st.slider(
+            "Rating",
+            1.0, 5.0, 4.0
+        )
 
+
+    st.markdown("---")
+
+
+    if st.button("🔮 Make Regression Prediction", type="primary"):
+
+        prediction = make_regression_prediction(models, input_dict)
+
+        st.success(f"### Predicted Value: ${prediction:,.0f}")
+
+        st.plotly_chart(revenue_gauge(prediction), use_container_width=True)
+
+        with st.expander("View Input Summary"):
+
+            st.dataframe(pd.DataFrame([input_dict]))
+
+
+# =============================================================================
+# CLASSIFICATION PAGE
+# =============================================================================
+
+elif page == "🏷️ Classification Model":
+
+    st.title("🏷️ Classification Prediction")
+
+    st.write("Enter feature values to get a category prediction.")
+
+    models = load_models()
+
+    st.markdown("---")
+
+    st.markdown("### Enter Feature Values")
+
+
+    region_options = ["Urban", "Suburban", "Rural"]
+
+    cuisine_options = [
+        "American",
+        "Italian",
+        "Japanese",
+        "Mexican",
+        "French",
+        "Indian",
+        "Chinese"
+    ]
+
+
+    rows = [st.columns(2) for _ in range(3)]
+
+    input_dict = {}
+
+
+    with rows[0][0]:
+
+        input_dict["Average Meal Price"] = st.slider(
+            "Average Meal Price",
+            5.0, 150.0, 25.0
+        )
+
+    with rows[0][1]:
+
+        input_dict["Seating Capacity"] = st.slider(
+            "Seating Capacity",
+            10, 300, 50
+        )
+
+
+    with rows[1][0]:
+
+        region = st.selectbox("Region", region_options, key="class_region")
+
+        input_dict[f"Location_{region}"] = 1
+
+
+    with rows[1][1]:
+
+        cuisine = st.selectbox("Cuisine", cuisine_options, key="class_cuisine")
+
+        input_dict[f"Cuisine_{cuisine}"] = 1
+
+
+    with rows[2][0]:
+
+        input_dict["Total Reservations"] = st.slider(
+            "Total Reservations",
+            0, 1000, 200
+        )
+
+
+    with rows[2][1]:
+
+        input_dict["Rating"] = st.slider(
+            "Rating",
+            1.0, 5.0, 4.0
+        )
 
 
     st.markdown("---")
@@ -254,25 +349,24 @@ elif page == "🏷️ Classification Model":
 
         label = make_classification_prediction(models, input_dict)
 
-
-        color_map = {
-            'Low': '🔴',
-            'Medium Low': '🟠',
-            'Medium High': '🟡',
-            'High': '🟢'
+        emoji_map = {
+            "Low": "🔴",
+            "Medium Low": "🟠",
+            "Medium High": "🟡",
+            "High": "🟢"
         }
 
-        emoji = color_map.get(label, '🔵')
+        emoji = emoji_map.get(label, "🔵")
 
         st.success(f"### Predicted Category: {emoji} {label}")
 
         with st.expander("View Input Summary"):
-            st.write(input_dict)
 
+            st.dataframe(pd.DataFrame([input_dict]))
 
 
 # =============================================================================
-# FOOTER (UNCHANGED)
+# FOOTER
 # =============================================================================
 
 st.markdown("---")
